@@ -1531,10 +1531,26 @@ int _tmain(int argc, TCHAR **argv)
     PyThreadState *threadState;
     HMODULE hmod;
     FARPROC proc;
-    int dummy;
-    wchar_t **program = CommandLineToArgvW(GetCommandLineW(), &dummy);
-    if (program != NULL) {
-        Py_SetProgramName(program[0]);
+    int wcargc;
+    size_t program_len;
+    wchar_t* program;
+    wchar_t **wcargv = CommandLineToArgvW(GetCommandLineW(), &wcargc);
+    errno_t program_errno;
+    if (wcargv != NULL) {
+        program_len =  wcslen(wcargv[0]) + 1;
+        program = (wchar_t*)malloc(sizeof(wchar_t) * program_len);
+        if (program) {
+            program_errno = wcscpy_s(program, program_len, wcargv[0]);
+            if (program_errno == 0) {
+                Py_SetProgramName(program);
+                // do not free `program` since Py_SetProgramName does not copy it.
+            } else {
+                free(program);
+                program = NULL;
+            }
+        }
+        LocalFree(wcargv);
+        wcargv = NULL;
     }
     Py_Initialize();
     PyEval_InitThreads();
